@@ -1,0 +1,19 @@
+#!/bin/bash
+
+set -e
+set -x
+
+if [ "$1" == "" ]; then
+  echo "Usage: remote_make FOLDER"
+  exit 1
+fi
+
+# The folder to copy
+FOLDER=$1
+BASENAME=`basename $FOLDER`
+
+scp -r $FOLDER odroid:/home/odroid/src/
+
+ssh odroid "cd /home/odroid/src/$BASENAME && make"
+
+ssh odroid "cd /home/odroid/src/$BASENAME && LD_LIBRARY_PATH=/opt/ComputeLibrary/build ./vector_add"
