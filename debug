@@ -1,0 +1,9 @@
+#!/bin/bash
+
+set -e
+set -x
+
+cd $HOME/src
+source init.sh > /dev/null
+module load modules/mali/4.4
+mgd
