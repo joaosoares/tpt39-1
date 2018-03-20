@@ -83,10 +83,12 @@ int main() {
 
   time_t start, end;
   double diff;
-  time(&start);
   for (unsigned j = 0; j < N; ++j) {
     input_a[j] = rand_float();
     input_b[j] = rand_float();
+  }
+  time(&start);
+  for (unsigned j = 0; j < N; ++j) {
     ref_output[j] = input_a[j] + input_b[j];
     // printf("ref %f\n",ref_output[j]);
   }
