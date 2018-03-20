@@ -1,7 +1,16 @@
 #!/bin/bash
 
 set -e
-set -x
+
+debug='false'
+
+while getopts 'd' flag; do
+  case "${flag}" in
+    d) debug='true' ;;
+    *) exit 1 ;;
+  esac
+done
+shift $((OPTIND -1))
 
 if [ "$1" == "" ]; then
   echo "Usage: remote_make FOLDER"
@@ -12,8 +21,20 @@ fi
 FOLDER=$1
 BASENAME=`basename $FOLDER`
 
-scp -r $FOLDER odroid:/home/odroid/src/
+echo "Copying files..."
+rsync -ru $FOLDER odroid:/home/odroid/src/
+# scp -r $FOLDER odroid:/home/odroid/src/
 
+# echo "Removing old binaries..."
+# ssh odroid "cd /home/odroid/src/$BASENAME && make clean"
+
+echo "Compiling..."
 ssh odroid "cd /home/odroid/src/$BASENAME && make"
 
-ssh odroid "cd /home/odroid/src/$BASENAME && LD_LIBRARY_PATH=/opt/ComputeLibrary/build ./vector_add"
+if [ $debug == "true" ]; then
+  echo "Executing in debug mode..."
+  ssh odroid "cd /home/odroid/src/$BASENAME && LD_LIBRARY_PATH=/opt/ComputeLibrary/build make debug"
+else
+  echo "Executing..."
+  ssh odroid "cd /home/odroid/src/$BASENAME && LD_LIBRARY_PATH=/opt/ComputeLibrary/build ./$BASENAME"
+fi
