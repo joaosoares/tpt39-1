@@ -167,9 +167,8 @@ int main() {
 
   // Enqueue as many kernels as it fits on the machine
 
-  status =
-      clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &N, &max_work_group_size,
-                             1, write_event, &kernel_event);
+  status = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &local_group_size,
+                                  NULL, 1, write_event, &kernel_event);
   checkError(status, "Failed to launch kernel");
 
   // Read the result. This the final operation.
@@ -186,10 +185,13 @@ int main() {
   for (uint i = 0; i < local_group_size; i++) {
     final_output += output[i];
   }
-  final_output = final_output / N;
+  final_output = final_output;
 
   if (fabsf(final_output - ref_output) > 1.0e-5f) {
     printf("Failed verification \nOutput: %f\nReference: %f\n", final_output,
+           ref_output);
+  } else {
+    printf("PASSED VERIFICATION!! \nOutput: %f\nReference: %f\n", final_output,
            ref_output);
   }
   // Release local events.
