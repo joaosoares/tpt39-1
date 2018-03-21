@@ -71,7 +71,7 @@ int main() {
   cl_kernel kernel;
 
   //--------------------------------------------------------------------
-  const unsigned N = 1000;
+  const unsigned N = 10000000;
   float *input_a = (float *)malloc(sizeof(float) * N);
   float *output;
   float ref_output = 0;
@@ -84,7 +84,7 @@ int main() {
   time_t start, end;
   double diff;
   for (unsigned j = 0; j < N; ++j) {
-    input_a[j] = j;  // rand_float();
+    input_a[j] = rand_float();
   }
   time(&start);
   for (unsigned j = 0; j < N; ++j) {
@@ -127,15 +127,13 @@ int main() {
   // Get max workgroup size
   clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(size_t),
                   &max_work_group_size, NULL);
-
-  // Calculate length of each local group
   printf("max work group size is %d\n", max_work_group_size);
 
+  // Calculate amount of groups
   local_group_size = (size_t)ceil(N / (double)max_work_group_size);
   printf("local_group_size is %d\n", local_group_size);
 
-  printf("max work group size is %d\n", max_work_group_size);
-  output = (float *)malloc(sizeof(float) * max_work_group_size);
+  output = (float *)malloc(sizeof(float) * local_group_size);
 
   // Input buffers.
   input_a_buf = clCreateBuffer(context, CL_MEM_READ_ONLY, N * sizeof(float),
@@ -169,8 +167,9 @@ int main() {
 
   // Enqueue as many kernels as it fits on the machine
 
-  status = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &N, &local_group_size,
-                                  1, write_event, &kernel_event);
+  status =
+      clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &N, &max_work_group_size,
+                             1, write_event, &kernel_event);
   checkError(status, "Failed to launch kernel");
 
   // Read the result. This the final operation.
@@ -184,7 +183,7 @@ int main() {
   // Verify results.
 
   float final_output = 0;
-  for (uint i = 0; i < max_work_group_size; i++) {
+  for (uint i = 0; i < local_group_size; i++) {
     final_output += output[i];
   }
   final_output = final_output / N;
