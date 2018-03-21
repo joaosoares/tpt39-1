@@ -3,10 +3,12 @@
 set -e
 
 debug='false'
+gdb='false'
 
-while getopts 'd' flag; do
+while getopts 'dg' flag; do
   case "${flag}" in
     d) debug='true' ;;
+    g) gdb='true' ;;
     *) exit 1 ;;
   esac
 done
@@ -20,10 +22,13 @@ fi
 # The folder to copy
 FOLDER=$1
 BASENAME=`basename $FOLDER`
+# Remove this argument
+shift
 
 echo "Copying files..."
 rsync -ru $FOLDER odroid:/home/odroid/src/
 # scp -r $FOLDER odroid:/home/odroid/src/
+
 
 # echo "Removing old binaries..."
 # ssh odroid "cd /home/odroid/src/$BASENAME && make clean"
@@ -34,7 +39,15 @@ ssh odroid "cd /home/odroid/src/$BASENAME && make"
 if [ $debug == "true" ]; then
   echo "Executing in debug mode..."
   ssh odroid "cd /home/odroid/src/$BASENAME && LD_LIBRARY_PATH=/opt/ComputeLibrary/build make debug"
-else
+  exit
+fi
+
+
+if [ $gdb == "true" ]; then
+  echo "Executing on gdb..."
+  ssh -t odroid "cd /home/odroid/src/$BASENAME && LD_LIBRARY_PATH=/opt/ComputeLibrary/build gdb $BASENAME $@"
+  exit
+fi
+
   echo "Executing..."
   ssh odroid "cd /home/odroid/src/$BASENAME && LD_LIBRARY_PATH=/opt/ComputeLibrary/build ./$BASENAME"
-fi

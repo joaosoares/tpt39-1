@@ -86,7 +86,6 @@ int main() {
   for (unsigned j = 0; j < N; ++j) {
     input_a[j] = j;  // rand_float();
   }
-  printf("ref %f\n", ref_output);
   time(&start);
   for (unsigned j = 0; j < N; ++j) {
     ref_output += input_a[j];
@@ -176,7 +175,7 @@ int main() {
 
   // Read the result. This the final operation.
   status = clEnqueueReadBuffer(queue, output_buf, CL_TRUE, 0,
-                               max_work_group_size * sizeof(float), &output, 1,
+                               max_work_group_size * sizeof(float), output, 1,
                                &kernel_event, &finish_event);
 
   time(&end);
@@ -188,6 +187,7 @@ int main() {
   for (uint i = 0; i < max_work_group_size; i++) {
     final_output += output[i];
   }
+  final_output = final_output / N;
 
   if (fabsf(final_output - ref_output) > 1.0e-5f) {
     printf("Failed verification \nOutput: %f\nReference: %f\n", final_output,
