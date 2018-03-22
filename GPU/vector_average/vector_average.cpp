@@ -71,20 +71,21 @@ int main() {
   cl_kernel kernel;
 
   //--------------------------------------------------------------------
-  const unsigned N = 5;
+  const unsigned N = 10000000;
   float *input_a = (float *)malloc(sizeof(float) * N);
-  float output = 0;
+  float *output;
   float ref_output = 0;
   cl_mem input_a_buf;  // num_devices elements
   cl_mem output_buf;   // num_devices elements
+  size_t max_work_group_size;
+  size_t local_group_size;
   int status;
 
   time_t start, end;
   double diff;
   for (unsigned j = 0; j < N; ++j) {
-    input_a[j] = j;  // rand_float();
+    input_a[j] = rand_float();
   }
-  printf("ref %f\n", ref_output);
   time(&start);
   for (unsigned j = 0; j < N; ++j) {
     ref_output += input_a[j];
@@ -122,6 +123,18 @@ int main() {
   int success = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
   if (success != CL_SUCCESS) print_clbuild_errors(program, device);
   kernel = clCreateKernel(program, "vector_average", NULL);
+
+  // Get max workgroup size
+  clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(size_t),
+                  &max_work_group_size, NULL);
+  printf("max work group size is %d\n", max_work_group_size);
+
+  // Calculate amount of groups
+  local_group_size = (size_t)ceil(N / (double)max_work_group_size);
+  printf("local_group_size is %d\n", local_group_size);
+
+  output = (float *)malloc(sizeof(float) * local_group_size);
+
   // Input buffers.
   input_a_buf = clCreateBuffer(context, CL_MEM_READ_ONLY, N * sizeof(float),
                                NULL, &status);
@@ -129,7 +142,8 @@ int main() {
 
   // Output buffer.
   output_buf =
-      clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(float), NULL, &status);
+      clCreateBuffer(context, CL_MEM_WRITE_ONLY,
+                     max_work_group_size * sizeof(float), NULL, &status);
   checkError(status, "Failed to create buffer for output");
 
   // Transfer inputs to each device. Each of the host buffers supplied to
@@ -151,21 +165,33 @@ int main() {
   status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &output_buf);
   checkError(status, "Failed to set argument 2");
 
-  const size_t global_work_size = N;
-  status = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &global_work_size,
+  // Enqueue as many kernels as it fits on the machine
+
+  status = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &local_group_size,
                                   NULL, 1, write_event, &kernel_event);
   checkError(status, "Failed to launch kernel");
+
   // Read the result. This the final operation.
-  status = clEnqueueReadBuffer(queue, output_buf, CL_TRUE, 0, sizeof(float),
-                               &output, 1, &kernel_event, &finish_event);
+  status = clEnqueueReadBuffer(queue, output_buf, CL_TRUE, 0,
+                               max_work_group_size * sizeof(float), output, 1,
+                               &kernel_event, &finish_event);
 
   time(&end);
   diff = difftime(end, start);
   printf("GPU took %.8lf seconds to run.\n", diff);
   // Verify results.
 
-  if (fabsf(output - ref_output) > 1.0e-5f) {
-    printf("Failed verification \nOutput: %f\nReference: %f\n", output,
+  float final_output = 0;
+  for (uint i = 0; i < local_group_size; i++) {
+    final_output += output[i];
+  }
+  final_output = final_output;
+
+  if (fabsf(final_output - ref_output) > 1.0e-5f) {
+    printf("Failed verification \nOutput: %f\nReference: %f\n", final_output,
+           ref_output);
+  } else {
+    printf("PASSED VERIFICATION!! \nOutput: %f\nReference: %f\n", final_output,
            ref_output);
   }
   // Release local events.
