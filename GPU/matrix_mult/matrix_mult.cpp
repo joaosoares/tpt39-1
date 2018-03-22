@@ -91,9 +91,8 @@ void matrixMultiply(float *A, float *B, float *X, unsigned dim1,
                     unsigned dimShared, unsigned dim2) {
   for (unsigned i = 0; i < dim1; i++) {
     for (unsigned j = 0; j < dim2; j++) {
-      X[i * dim2 + j] = 0;
       for (unsigned k = 0; k < dimShared; k++) {
-        X[i * dim2 + j] += A[i * dimShared + k] * B[k * dimShared + j];
+        X[i * dim2 + j] += A[i * dimShared + k] * B[k * dim2 + j];
       }
     }
   }
@@ -118,9 +117,9 @@ int main() {
   //--------------------------------------------------------------------
 
   // Sizes for the matrices
-  const unsigned M = 2048;
-  const unsigned N = 2048;
-  const unsigned K = 2048;
+  const unsigned M = 128;
+  const unsigned N = 256;
+  const unsigned K = 512;
 
   // Allocate memory for first matrix
   float *input_a = (float *)malloc(sizeof(float) * M * K);
@@ -240,7 +239,7 @@ int main() {
   status = clSetKernelArg(kernel, argi++, sizeof(cl_mem), &bufferOutput);
   checkError(status, "Failed to set argument 3");
 
-  status = clSetKernelArg(kernel, argi++, sizeof(int), &M);
+  status = clSetKernelArg(kernel, argi++, sizeof(int), &K);
   checkError(status, "Failed to set argument 4");
 
   status = clSetKernelArg(kernel, argi++, sizeof(int), &N);

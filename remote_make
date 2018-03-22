@@ -4,11 +4,13 @@ set -e
 
 debug='false'
 gdb='false'
+copyvideo='false'
 
-while getopts 'dg' flag; do
+while getopts 'dgv' flag; do
   case "${flag}" in
     d) debug='true' ;;
     g) gdb='true' ;;
+    v) copyvideo='true' ;;
     *) exit 1 ;;
   esac
 done
@@ -39,15 +41,16 @@ ssh odroid "cd /home/odroid/src/$BASENAME && make"
 if [ $debug == "true" ]; then
   echo "Executing in debug mode..."
   ssh odroid "cd /home/odroid/src/$BASENAME && LD_LIBRARY_PATH=/opt/ComputeLibrary/build make debug"
-  exit
+else
+  if [ $gdb == "true" ]; then
+    echo "Executing on gdb..."
+    ssh -t odroid "cd /home/odroid/src/$BASENAME && LD_LIBRARY_PATH=/opt/ComputeLibrary/build gdb $BASENAME $@"
+  else 
+    echo "Executing..."
+    ssh odroid "cd /home/odroid/src/$BASENAME && LD_LIBRARY_PATH=/opt/ComputeLibrary/build ./$BASENAME"
+  fi
 fi
 
-
-if [ $gdb == "true" ]; then
-  echo "Executing on gdb..."
-  ssh -t odroid "cd /home/odroid/src/$BASENAME && LD_LIBRARY_PATH=/opt/ComputeLibrary/build gdb $BASENAME $@"
-  exit
+if [ $copyvideo == "true" ]; then
+  scp odroid:src/$BASENAME/output.avi $FOLDER
 fi
-
-  echo "Executing..."
-  ssh odroid "cd /home/odroid/src/$BASENAME && LD_LIBRARY_PATH=/opt/ComputeLibrary/build ./$BASENAME"

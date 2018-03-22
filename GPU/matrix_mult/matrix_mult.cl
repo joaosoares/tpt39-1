@@ -7,7 +7,7 @@ __kernel void matrix_mult(__global const float *A, __global const float *B,
   float curVal = 0;
   int i;
   for (i = 0; i < wA; i++) {
-    curVal += A[ty * wA + i] * B[i * wB + tx];
+    curVal += A[tx * wA + i] * B[i * wB + ty];
   }
-  X[ty * wA + tx] = curVal;
+  X[tx * wB + ty] = curVal;
 }
