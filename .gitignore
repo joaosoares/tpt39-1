@@ -1,2 +1,3 @@
 .DS_Store
-FPGA/vector_add_fpga/reports
+FPGA/vector_add_fpga/reports/reports
+FPGA/vector_add_fpga/reports/lib
