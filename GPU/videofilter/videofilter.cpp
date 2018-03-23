@@ -19,8 +19,9 @@ cl_program program;
 cl_kernel kernel;
 
 int main(int, char **) {
-	// Initialize GPU
-	gpuInitialize();
+  // Initialize GPU
+  gpuInitialize();
+  // gpuShowInfo();
   VideoCapture camera("./bourne.mp4");
   if (!camera.isOpened())  // check if we succeeded
     return -1;
@@ -48,7 +49,7 @@ int main(int, char **) {
   while (true) {
     Mat cameraFrame, displayframe;
     count = count + 1;
-    if (count > 299) break;
+    if (count > 1) break;
     camera >> cameraFrame;
     Mat filterframe = Mat(cameraFrame.size(), CV_8UC3);
     Mat grayframe, edge_x, edge_y, edge, edge_inv;
@@ -57,12 +58,17 @@ int main(int, char **) {
     // CPU computation
     auto perf = perfStart();
     gpuGaussianBlur(grayframe, grayframe);
-    GaussianBlur(grayframe, grayframe, Size(3, 3), 0, 0);
-    GaussianBlur(grayframe, grayframe, Size(3, 3), 0, 0);
-    Scharr(grayframe, edge_x, CV_8U, 0, 1, 1, 0, BORDER_DEFAULT);
-    Scharr(grayframe, edge_y, CV_8U, 1, 0, 1, 0, BORDER_DEFAULT);
-    addWeighted(edge_x, 0.5, edge_y, 0.5, 0, edge);
-    threshold(edge, edge, 80, 255, THRESH_BINARY_INV);
+    // gpuGaussianBlur(grayframe, result);
+    // result.copyTo(grayframe);
+    // gpuGaussianBlur(grayframe, result);
+    // result.copyTo(grayframe);
+    // GaussianBlur(grayframe, grayframe, Size(3, 3), 0, 0);
+    // GaussianBlur(grayframe, grayframe, Size(3, 3), 0, 0);
+    // Scharr(grayframe, edge_x, CV_8U, 0, 1, 1, 0, BORDER_DEFAULT);
+    // Scharr(grayframe, edge_y, CV_8U, 1, 0, 1, 0, BORDER_DEFAULT);
+    // addWeighted(edge_x, 0.5, edge_y, 0.5, 0, edge);
+    // threshold(edge, edge, 80, 255, THRESH_BINARY_INV);
+    grayframe.copyTo(edge);
     auto perfResult = perfDone(perf);
     printf("CPU computation took %d milliseconds.\n", perfResult);
 

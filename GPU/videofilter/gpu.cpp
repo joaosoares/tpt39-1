@@ -4,6 +4,7 @@
 
 // private non-exported function declarations
 void matToConv(Mat imageMatrix, float *convMatrix, int rows, int cols);
+void convToMat(float *convMatrix, Mat result, int rows, int cols);
 void print_clbuild_errors(cl_program program, cl_device_id device);
 unsigned char **read_file(const char *name);
 void filter(Mat matrix, Mat result, float *kernel, int);
@@ -21,6 +22,7 @@ extern cl_program program;
 extern cl_kernel kernel;
 
 int gpuInitialize() {
+  int status = 0;
   char char_buffer[STRING_BUFFER_LEN];
 
   cl_context_properties context_properties[] = {
@@ -57,15 +59,19 @@ int gpuInitialize() {
     printf("Program creation failed\n");
     return -1;
   }
+
   int success = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
   if (success != CL_SUCCESS) print_clbuild_errors(program, device);
-  kernel = clCreateKernel(program, "matrix_mult", NULL);
+  kernel = clCreateKernel(program, "matrix_mult", &status);
+
+  printf("Error code for kernel creation: %d\n", status);
 
   return 0;
 }
 
 // gpuGaussianBlur applies a 3x3 gaussian blur on a float matrix
 void gpuGaussianBlur(Mat matrix, Mat result) {
+  printf("Starting gpuGaussianBlur\n");
   float kernel[9] = {1, 1, 1, 1, 1, 1, 1, 1, 1};
   filter(matrix, result, kernel, 1);
 }
@@ -76,14 +82,50 @@ void filter(Mat matrix, Mat result, float *kernel, int numKernels) {
   const int convMatrixSize = numElements * kernelSize;
   float convMatrix[convMatrixSize] = {0};
   float *output = (float *)malloc(numElements * sizeof(float));
-  matrix.copyTo(result);
+  matrix.convertTo(matrix, CV_32FC1);
+  Mat temp_result = Mat(matrix.size(), CV_32FC1);
+  // matrix.copyTo(result);
 
+  printf("Kernel:\n");
+  matrixPrint(kernel, 9, 1);
+
+  printf("First pixels for input matrix: \n");
+  printf("[ %7.2f ]\n", matrix.at<float>(0, 0));
+  printf("[ %7.2f ]\n", matrix.at<float>(0, 1));
+  printf("[ %7.2f ]\n", matrix.at<float>(0, 2));
+  printf("[ %7.2f ]\n", matrix.at<float>(0, 3));
+  printf("[ %7.2f ]\n", matrix.at<float>(0, 4));
+  printf("[ %7.2f ]\n", matrix.at<float>(0, 5));
+
+  printf("Starting matToConv\n");
   // Convert matrix to do convolution
   matToConv(matrix, convMatrix, matrix.rows, matrix.cols);
 
+  printf("Starting matrixMultiply\n");
   // Execute matrix multiplication
   matrixMultiply(output, convMatrix, kernel, numElements, numKernels,
                  kernelSize);
+
+  printf("Mult result:\n");
+  matrixPrint(output, numElements, 1);
+
+  printf("Starting convToMat\n");
+  convToMat(output, temp_result, matrix.rows, matrix.cols);
+
+  printf("First pixels for result matrix: \n");
+  printf("[ %7.2f ]\n", result.at<float>(0, 0));
+  printf("[ %7.2f ]\n", result.at<float>(0, 1));
+  printf("[ %7.2f ]\n", result.at<float>(0, 2));
+  printf("[ %7.2f ]\n", result.at<float>(0, 3));
+  printf("[ %7.2f ]\n", result.at<float>(0, 4));
+  printf("[ %7.2f ]\n", result.at<float>(0, 5));
+  // for (int i = 0; i < 5; i++) {
+  //   for (int j = 0; i < 5; j++) {
+  //   }
+  // }
+
+  temp_result.convertTo(temp_result, CV_8U);
+  temp_result.copyTo(result);
 }
 
 // Given an OpenCV Mat, create a float matrix to do a convolution where each
@@ -96,6 +138,7 @@ void matToConv(Mat imageMatrix, float *convMatrix, int rows, int cols) {
   const int KERNEL_MAP_X[9] = {-1, -1, -1, 0, 0, 0, 1, 1, 1};
   const int KERNEL_MAP_Y[9] = {-1, 0, 1, -1, 0, 1, -1, 0, 1};
 
+  int curIdx = 0;
   for (int i = 0; i < rows; i++) {
     for (int j = 0; j < cols; j++) {
       for (int k = 0; k < kernelSize; k++) {
@@ -106,9 +149,25 @@ void matToConv(Mat imageMatrix, float *convMatrix, int rows, int cols) {
           curVal = 0;
         } else {
           curVal = imageMatrix.at<float>(curIndX, curIndY);
+          // if ((i < 5) && (j < 5)) {
+          //   printf("Curval: %.2f\n", curVal);
+          // }
         }
-        convMatrix[(i + j) * kernelSize + k] = curVal;
+        convMatrix[curIdx * kernelSize + k] = curVal;
       }
+      curIdx++;
+    }
+  }
+  matrixPrint(convMatrix, rows * cols, kernelSize);
+}
+
+void convToMat(float *convMatrix, Mat result, int rows, int cols) {
+  int curIdx = 0;
+
+  for (int i = 0; i < rows; i++) {
+    for (int j = 0; j < cols; j++) {
+      result.at<float>(i, j) = convMatrix[curIdx];
+      curIdx++;
     }
   }
 }
@@ -116,11 +175,12 @@ void matToConv(Mat imageMatrix, float *convMatrix, int rows, int cols) {
 void matrixMultiply(float *output, float *input_a, float *input_b, unsigned M,
                     unsigned N, unsigned K) {
   // Work sizes
-  size_t localWorkSize[2], globalWorkSize[2];
+  // size_t localWorkSize[2];
+  size_t globalWorkSize[2];
   int status;
 
-  localWorkSize[0] = 16;
-  localWorkSize[1] = 16;
+  // localWorkSize[0] = 10;
+  // localWorkSize[1] = 10;
   globalWorkSize[0] = M;
   globalWorkSize[1] = N;
 
@@ -172,8 +232,8 @@ void matrixMultiply(float *output, float *input_a, float *input_b, unsigned M,
   checkError(status, "Failed to set argument 5");
 
   // Enqueue as many kernels as it fits on the machine
-  status = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, globalWorkSize,
-                                  localWorkSize, 2, write_event, &kernel_event);
+  status = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, globalWorkSize, NULL,
+                                  2, write_event, &kernel_event);
   checkError(status, "Failed to launch kernel");
 
   // // Read the result. This the final operation.
@@ -228,6 +288,8 @@ unsigned char **read_file(const char *name) {
   fseek(fp, 0, SEEK_SET);
 
   *output = (unsigned char *)malloc(size);
+  unsigned char **outputstr = (unsigned char **)malloc(sizeof(unsigned char *));
+  *outputstr = (unsigned char *)malloc(size);
   if (!*output) {
     fclose(fp);
     printf("mem allocate failure:%s", name);
@@ -236,8 +298,12 @@ unsigned char **read_file(const char *name) {
 
   if (!fread(*output, size, 1, fp)) printf("failed to read file\n");
   fclose(fp);
-  printf("Output: %s", *output);
-  return output;
+  printf("file size %d\n", size);
+  printf("-------------------------------------------\n");
+  snprintf((char *)*outputstr, size, "%s\n", *output);
+  printf("%s\n", *outputstr);
+  printf("-------------------------------------------\n");
+  return outputstr;
 }
 
 void checkError(int status, const char *msg) {
@@ -250,10 +316,16 @@ float rand_float() { return float(rand()) / float(RAND_MAX) * 20.0f - 10.0f; }
 // matrixPrint prints a formatted version of the matrix using printf
 void matrixPrint(float *matrix, unsigned rows, unsigned cols) {
   for (unsigned i = 0; i < rows; i++) {
-    printf("[");
-    for (unsigned j = 0; j < cols; j++) {
-      printf(" %7.2f ", matrix[i * cols + j]);
+    if ((i < 6) || (i > rows - 5)) {
+      printf("[");
+      for (unsigned j = 0; j < cols; j++) {
+        if ((i == 5) || (j == 5)) {
+          printf("    ...  ");
+        } else if ((j < 5) || (j > cols - 5)) {
+          printf(" %7.2f ", matrix[i * cols + j]);
+        }
+      }
+      printf("]\n");
     }
-    printf("]\n");
   }
 }

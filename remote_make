@@ -5,12 +5,14 @@ set -e
 debug='false'
 gdb='false'
 copyvideo='false'
+fpga='false'
 
-while getopts 'dgv' flag; do
+while getopts 'dgvf' flag; do
   case "${flag}" in
     d) debug='true' ;;
     g) gdb='true' ;;
     v) copyvideo='true' ;;
+    f) fpga='true' ;;
     *) exit 1 ;;
   esac
 done
@@ -28,7 +30,11 @@ BASENAME=`basename $FOLDER`
 shift
 
 echo "Copying files..."
-rsync -ru $FOLDER odroid:/home/odroid/src/
+if [ $fpga == "true" ]; then
+  rsync -ru $FOLDER a405-15.enst.fr:/cal/exterieurs/ext5100/src/
+else
+  rsync -ru $FOLDER odroid:/home/odroid/src/
+fi
 # scp -r $FOLDER odroid:/home/odroid/src/
 
 
@@ -36,20 +42,26 @@ rsync -ru $FOLDER odroid:/home/odroid/src/
 # ssh odroid "cd /home/odroid/src/$BASENAME && make clean"
 
 echo "Compiling..."
-ssh odroid "cd /home/odroid/src/$BASENAME && make"
+if [ $fpga == "true" ]; then
+  ssh a405-15.enst.fr "cd /cal/exterieurs/ext5100/src/$BASENAME"
+else
+  ssh odroid "cd /home/odroid/src/$BASENAME && make"
+fi
 
 if [ $debug == "true" ]; then
   echo "Executing in debug mode..."
   ssh odroid "cd /home/odroid/src/$BASENAME && LD_LIBRARY_PATH=/opt/ComputeLibrary/build make debug"
-else
-  if [ $gdb == "true" ]; then
-    echo "Executing on gdb..."
-    ssh -t odroid "cd /home/odroid/src/$BASENAME && LD_LIBRARY_PATH=/opt/ComputeLibrary/build gdb $BASENAME $@"
-  else 
-    echo "Executing..."
-    ssh odroid "cd /home/odroid/src/$BASENAME && LD_LIBRARY_PATH=/opt/ComputeLibrary/build ./$BASENAME"
-  fi
+elif [ $gdb == "true" ]; then
+  echo "Executing on gdb..."
+  ssh -t odroid "cd /home/odroid/src/$BASENAME && LD_LIBRARY_PATH=/opt/ComputeLibrary/build gdb $BASENAME $@"
+elif [ $fpga == "true" ]; then
+  echo "Executing fpga..."
+  ssh -t a405-15.enst.fr "cd /cal/exterieurs/ext5100/src/$BASENAME && ./setup.sh && make cl_compile && make sim"
+else 
+  echo "Executing..."
+  ssh odroid "cd /home/odroid/src/$BASENAME && LD_LIBRARY_PATH=/opt/ComputeLibrary/build ./$BASENAME"
 fi
+
 
 if [ $copyvideo == "true" ]; then
   scp odroid:src/$BASENAME/output.avi $FOLDER
