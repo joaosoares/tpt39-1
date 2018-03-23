@@ -14,6 +14,19 @@ void matrixPrint(float *matrix, unsigned rows, unsigned cols);
 void matrixMultiply(float *output, float *input_a, float *input_b, unsigned M,
                     unsigned N, unsigned K);
 
+// cpuMatrixMultiply uses the CPU to multiply two input matrices with proper
+// dimensions
+void cpuMatrixMultiply(float *X, float *A, float *B, unsigned dim1,
+                       unsigned dim2, unsigned dimShared) {
+  for (unsigned i = 0; i < dim1; i++) {
+    for (unsigned j = 0; j < dim2; j++) {
+      for (unsigned k = 0; k < dimShared; k++) {
+        X[i * dim2 + j] += A[i * dimShared + k] * B[k * dim2 + j];
+      }
+    }
+  }
+}
+
 extern cl_platform_id platform;
 extern cl_device_id device;
 extern cl_context context;
@@ -72,7 +85,8 @@ int gpuInitialize() {
 // gpuGaussianBlur applies a 3x3 gaussian blur on a float matrix
 void gpuGaussianBlur(Mat matrix, Mat result) {
   printf("Starting gpuGaussianBlur\n");
-  float kernel[9] = {1, 1, 1, 1, 1, 1, 1, 1, 1};
+  float kernel[9] = {0.077847, 0.123317, 0.077847, 0.123317, 0.195346,
+                     0.123317, 0.077847, 0.123317, 0.077847};
   filter(matrix, result, kernel, 1);
 }
 
@@ -83,7 +97,7 @@ void filter(Mat matrix, Mat result, float *kernel, int numKernels) {
   float convMatrix[convMatrixSize] = {0};
   float *output = (float *)malloc(numElements * sizeof(float));
   matrix.convertTo(matrix, CV_32FC1);
-  Mat temp_result = Mat(matrix.size(), CV_32FC1);
+  Mat temp_result = Mat(matrix.size(), CV_32FC1, 1.f / 255);
   // matrix.copyTo(result);
 
   printf("Kernel:\n");
@@ -111,19 +125,19 @@ void filter(Mat matrix, Mat result, float *kernel, int numKernels) {
 
   printf("Starting convToMat\n");
   convToMat(output, temp_result, matrix.rows, matrix.cols);
+  // normalize(temp_result, temp_result, 255, 0);
 
   printf("First pixels for result matrix: \n");
-  printf("[ %7.2f ]\n", result.at<float>(0, 0));
-  printf("[ %7.2f ]\n", result.at<float>(0, 1));
-  printf("[ %7.2f ]\n", result.at<float>(0, 2));
-  printf("[ %7.2f ]\n", result.at<float>(0, 3));
-  printf("[ %7.2f ]\n", result.at<float>(0, 4));
-  printf("[ %7.2f ]\n", result.at<float>(0, 5));
+  printf("[ %7.2f ]\n", temp_result.at<float>(0, 0));
+  printf("[ %7.2f ]\n", temp_result.at<float>(0, 1));
+  printf("[ %7.2f ]\n", temp_result.at<float>(0, 2));
+  printf("[ %7.2f ]\n", temp_result.at<float>(0, 3));
+  printf("[ %7.2f ]\n", temp_result.at<float>(0, 4));
+  printf("[ %7.2f ]\n", temp_result.at<float>(0, 5));
   // for (int i = 0; i < 5; i++) {
   //   for (int j = 0; i < 5; j++) {
   //   }
   // }
-
   temp_result.convertTo(temp_result, CV_8U);
   temp_result.copyTo(result);
 }
@@ -167,6 +181,10 @@ void convToMat(float *convMatrix, Mat result, int rows, int cols) {
   for (int i = 0; i < rows; i++) {
     for (int j = 0; j < cols; j++) {
       result.at<float>(i, j) = convMatrix[curIdx];
+      // if (curIdx < 5) {
+      //   printf("[ %7.2f ]\n", convMatrix[curIdx]);
+      //   printf("[ %7.2f ]\n", result.at<float>(i, j));
+      // }
       curIdx++;
     }
   }

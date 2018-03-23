@@ -49,7 +49,7 @@ int main(int, char **) {
   while (true) {
     Mat cameraFrame, displayframe;
     count = count + 1;
-    if (count > 1) break;
+    if (count > 30) break;
     camera >> cameraFrame;
     Mat filterframe = Mat(cameraFrame.size(), CV_8UC3);
     Mat grayframe, edge_x, edge_y, edge, edge_inv;
@@ -57,6 +57,8 @@ int main(int, char **) {
 
     // CPU computation
     auto perf = perfStart();
+    gpuGaussianBlur(grayframe, grayframe);
+    gpuGaussianBlur(grayframe, grayframe);
     gpuGaussianBlur(grayframe, grayframe);
     // gpuGaussianBlur(grayframe, result);
     // result.copyTo(grayframe);
