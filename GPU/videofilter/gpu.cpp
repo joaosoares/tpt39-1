@@ -90,6 +90,20 @@ void gpuGaussianBlur(Mat matrix, Mat result) {
   filter(matrix, result, kernel, 1);
 }
 
+// gpuSobelHorizontal applies a 3x3 Sobel / Scharr filter on the x axis
+void gpuSobelHorizontal(Mat matrix, Mat result) {
+  printf("Starting gpuSobelHorizontal\n");
+  float kernel[9] = {3, 0, -3, 10, 0, -10, 3, 0, -3};
+  filter(matrix, result, kernel, 1);
+}
+
+// gpuSobelVertical applies a 3x3 Sobel / Scharr filter on the y axis
+void gpuSobelVertical(Mat matrix, Mat result) {
+  printf("Starting gpuSobelVertical\n");
+  float kernel[9] = {3, 10, 3, 0, 0, 0, -3, -10, -3};
+  filter(matrix, result, kernel, 1);
+}
+
 void filter(Mat matrix, Mat result, float *kernel, int numKernels) {
   const int kernelSize = 9;
   const int numElements = matrix.rows * matrix.cols;
@@ -100,46 +114,53 @@ void filter(Mat matrix, Mat result, float *kernel, int numKernels) {
   Mat temp_result = Mat(matrix.size(), CV_32FC1, 1.f / 255);
   // matrix.copyTo(result);
 
-  printf("Kernel:\n");
-  matrixPrint(kernel, 9, 1);
+  // printf("Kernel:\n");
+  // matrixPrint(kernel, 9, 1);
 
-  printf("First pixels for input matrix: \n");
-  printf("[ %7.2f ]\n", matrix.at<float>(0, 0));
-  printf("[ %7.2f ]\n", matrix.at<float>(0, 1));
-  printf("[ %7.2f ]\n", matrix.at<float>(0, 2));
-  printf("[ %7.2f ]\n", matrix.at<float>(0, 3));
-  printf("[ %7.2f ]\n", matrix.at<float>(0, 4));
-  printf("[ %7.2f ]\n", matrix.at<float>(0, 5));
+  // printf("First pixels for input matrix: \n");
+  // printf("[ %7.2f ]\n", matrix.at<float>(0, 0));
+  // printf("[ %7.2f ]\n", matrix.at<float>(0, 1));
+  // printf("[ %7.2f ]\n", matrix.at<float>(0, 2));
+  // printf("[ %7.2f ]\n", matrix.at<float>(0, 3));
+  // printf("[ %7.2f ]\n", matrix.at<float>(0, 4));
+  // printf("[ %7.2f ]\n", matrix.at<float>(0, 5));
 
-  printf("Starting matToConv\n");
+  // printf("Starting matToConv\n");
   // Convert matrix to do convolution
   matToConv(matrix, convMatrix, matrix.rows, matrix.cols);
+  // matrixPrint(convMatrix, matrix.rows * matrix.cols, 9);
 
-  printf("Starting matrixMultiply\n");
+  // printf("Starting matrixMultiply\n");
   // Execute matrix multiplication
   matrixMultiply(output, convMatrix, kernel, numElements, numKernels,
                  kernelSize);
 
-  printf("Mult result:\n");
-  matrixPrint(output, numElements, 1);
+  // printf("Mult result:\n");
+  // matrixPrint(output, numElements, 1);
 
-  printf("Starting convToMat\n");
+  // printf("Starting convToMat\n");
   convToMat(output, temp_result, matrix.rows, matrix.cols);
-  // normalize(temp_result, temp_result, 255, 0);
 
-  printf("First pixels for result matrix: \n");
-  printf("[ %7.2f ]\n", temp_result.at<float>(0, 0));
-  printf("[ %7.2f ]\n", temp_result.at<float>(0, 1));
-  printf("[ %7.2f ]\n", temp_result.at<float>(0, 2));
-  printf("[ %7.2f ]\n", temp_result.at<float>(0, 3));
-  printf("[ %7.2f ]\n", temp_result.at<float>(0, 4));
-  printf("[ %7.2f ]\n", temp_result.at<float>(0, 5));
-  // for (int i = 0; i < 5; i++) {
-  //   for (int j = 0; i < 5; j++) {
-  //   }
-  // }
+  // printf("First pixels for result matrix (float): \n");
+  // printf("[ %7.2f ]\n", temp_result.at<float>(0, 0));
+  // printf("[ %7.2f ]\n", temp_result.at<float>(0, 1));
+  // printf("[ %7.2f ]\n", temp_result.at<float>(0, 2));
+  // printf("[ %7.2f ]\n", temp_result.at<float>(0, 3));
+  // printf("[ %7.2f ]\n", temp_result.at<float>(0, 4));
+  // printf("[ %7.2f ]\n", temp_result.at<float>(0, 5));
+
+  // gpuFloatMatPrint(temp_result);
+
   temp_result.convertTo(temp_result, CV_8U);
+
   temp_result.copyTo(result);
+  // printf("First pixels for result matrix (integer): \n");
+  // printf("[ %3d ]\n", result.at<int>(0, 0));
+  // printf("[ %3d ]\n", result.at<int>(0, 1));
+  // printf("[ %3d ]\n", result.at<int>(0, 2));
+  // printf("[ %3d ]\n", result.at<int>(0, 3));
+  // printf("[ %3d ]\n", result.at<int>(0, 4));
+  // printf("[ %3d ]\n", result.at<int>(0, 5));
 }
 
 // Given an OpenCV Mat, create a float matrix to do a convolution where each
@@ -172,7 +193,6 @@ void matToConv(Mat imageMatrix, float *convMatrix, int rows, int cols) {
       curIdx++;
     }
   }
-  matrixPrint(convMatrix, rows * cols, kernelSize);
 }
 
 void convToMat(float *convMatrix, Mat result, int rows, int cols) {
@@ -341,6 +361,48 @@ void matrixPrint(float *matrix, unsigned rows, unsigned cols) {
           printf("    ...  ");
         } else if ((j < 5) || (j > cols - 5)) {
           printf(" %7.2f ", matrix[i * cols + j]);
+        }
+      }
+      printf("]\n");
+    }
+  }
+}
+
+// gpuFloatMatPrint prints a formatted version of the matrix using printf
+void gpuFloatMatPrint(Mat matrix) {
+  unsigned rows = matrix.rows;
+  unsigned cols = matrix.cols;
+  float value;
+  for (unsigned i = 0; i < rows; i++) {
+    if ((i < 6) || (i > rows - 5)) {
+      printf("[");
+      for (unsigned j = 0; j < cols; j++) {
+        if (((i == 5) && (j < 6)) || (j == 5)) {
+          printf("    ...  ");
+        } else if ((j < 5) || (j > cols - 5)) {
+          value = matrix.at<float>(i, j);
+          printf(" %7.2f ", value);
+        }
+      }
+      printf("]\n");
+    }
+  }
+}
+
+// gpuIntMatPrint prints a formatted version of the matrix using printf
+void gpuIntMatPrint(Mat matrix) {
+  unsigned rows = matrix.rows;
+  unsigned cols = matrix.cols;
+  int value;
+  for (unsigned i = 0; i < rows; i++) {
+    if ((i < 6) || (i > rows - 5)) {
+      printf("[");
+      for (unsigned j = 0; j < cols; j++) {
+        if (((i == 5) && (j < 6)) || (j == 5)) {
+          printf("    ...  ");
+        } else if ((j < 5) || (j > cols - 5)) {
+          value = matrix.at<int>(i, j);
+          printf(" %3d ", value);
         }
       }
       printf("]\n");

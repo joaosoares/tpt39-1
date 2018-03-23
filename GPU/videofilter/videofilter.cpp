@@ -49,30 +49,33 @@ int main(int, char **) {
   while (true) {
     Mat cameraFrame, displayframe;
     count = count + 1;
-    if (count > 30) break;
+    if (count > 100) break;
     camera >> cameraFrame;
     Mat filterframe = Mat(cameraFrame.size(), CV_8UC3);
-    Mat grayframe, edge_x, edge_y, edge, edge_inv;
+    Mat grayframe, edge, edge_inv;
     cvtColor(cameraFrame, grayframe, CV_BGR2GRAY);
-
+    Mat edge_x = Mat(grayframe.size(), CV_8U);
+    Mat edge_y = Mat(grayframe.size(), CV_8U);
     // CPU computation
     auto perf = perfStart();
     gpuGaussianBlur(grayframe, grayframe);
     gpuGaussianBlur(grayframe, grayframe);
     gpuGaussianBlur(grayframe, grayframe);
-    // gpuGaussianBlur(grayframe, result);
-    // result.copyTo(grayframe);
-    // gpuGaussianBlur(grayframe, result);
-    // result.copyTo(grayframe);
+    gpuSobelHorizontal(grayframe, edge_x);
+    gpuSobelVertical(grayframe, edge_y);
+    // printf("Edge x matrix (size %dx%d): \n", edge_x.rows, edge_x.cols);
+    // gpuIntMatPrint(edge_x);
+    // printf("Edge y matrix: \n");
+    // gpuIntMatPrint(edge_y);
+    // GaussianBlur(grayframe, grayframe, Size(3, 3), 0, 0);
     // GaussianBlur(grayframe, grayframe, Size(3, 3), 0, 0);
     // GaussianBlur(grayframe, grayframe, Size(3, 3), 0, 0);
     // Scharr(grayframe, edge_x, CV_8U, 0, 1, 1, 0, BORDER_DEFAULT);
     // Scharr(grayframe, edge_y, CV_8U, 1, 0, 1, 0, BORDER_DEFAULT);
-    // addWeighted(edge_x, 0.5, edge_y, 0.5, 0, edge);
-    // threshold(edge, edge, 80, 255, THRESH_BINARY_INV);
-    grayframe.copyTo(edge);
+    addWeighted(edge_x, 0.5, edge_y, 0.5, 0, edge);
+    threshold(edge, edge, 80, 255, THRESH_BINARY_INV);
     auto perfResult = perfDone(perf);
-    printf("CPU computation took %d milliseconds.\n", perfResult);
+    printf("GPU computation took %d milliseconds.\n", perfResult);
 
     cvtColor(edge, edge_inv, CV_GRAY2BGR);
     // Clear the output image to black, so that the cartoon line drawings will
