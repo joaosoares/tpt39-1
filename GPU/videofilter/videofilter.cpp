@@ -49,7 +49,7 @@ int main(int, char **) {
   while (true) {
     Mat cameraFrame, displayframe;
     count = count + 1;
-    if (count > 100) break;
+    if (count > 10) break;
     camera >> cameraFrame;
     Mat filterframe = Mat(cameraFrame.size(), CV_8UC3);
     Mat grayframe, edge, edge_inv;
@@ -67,6 +67,7 @@ int main(int, char **) {
     // gpuIntMatPrint(edge_x);
     // printf("Edge y matrix: \n");
     // gpuIntMatPrint(edge_y);
+
     // GaussianBlur(grayframe, grayframe, Size(3, 3), 0, 0);
     // GaussianBlur(grayframe, grayframe, Size(3, 3), 0, 0);
     // GaussianBlur(grayframe, grayframe, Size(3, 3), 0, 0);
@@ -75,7 +76,8 @@ int main(int, char **) {
     addWeighted(edge_x, 0.5, edge_y, 0.5, 0, edge);
     threshold(edge, edge, 80, 255, THRESH_BINARY_INV);
     auto perfResult = perfDone(perf);
-    printf("GPU computation took %d milliseconds.\n", perfResult);
+    // printf("Frame %d - computation took %d milliseconds.\n", count,
+    // perfResult);
 
     cvtColor(edge, edge_inv, CV_GRAY2BGR);
     // Clear the output image to black, so that the cartoon line drawings will
@@ -91,7 +93,7 @@ int main(int, char **) {
   }
   outputVideo.release();
   camera.release();
-  printf("FPS %.2lf .\n", 299.0 / (totalTime / 1000.0));
+  printf("FPS %.2lf .\n", ((float)count) / (totalTime / 1000.0));
 
   return EXIT_SUCCESS;
 }

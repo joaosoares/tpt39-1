@@ -84,7 +84,7 @@ int gpuInitialize() {
 
 // gpuGaussianBlur applies a 3x3 gaussian blur on a float matrix
 void gpuGaussianBlur(Mat matrix, Mat result) {
-  printf("Starting gpuGaussianBlur\n");
+  // printf("Starting gpuGaussianBlur\n");
   float kernel[9] = {0.077847, 0.123317, 0.077847, 0.123317, 0.195346,
                      0.123317, 0.077847, 0.123317, 0.077847};
   filter(matrix, result, kernel, 1);
@@ -92,14 +92,14 @@ void gpuGaussianBlur(Mat matrix, Mat result) {
 
 // gpuSobelHorizontal applies a 3x3 Sobel / Scharr filter on the x axis
 void gpuSobelHorizontal(Mat matrix, Mat result) {
-  printf("Starting gpuSobelHorizontal\n");
+  // printf("Starting gpuSobelHorizontal\n");
   float kernel[9] = {3, 0, -3, 10, 0, -10, 3, 0, -3};
   filter(matrix, result, kernel, 1);
 }
 
 // gpuSobelVertical applies a 3x3 Sobel / Scharr filter on the y axis
 void gpuSobelVertical(Mat matrix, Mat result) {
-  printf("Starting gpuSobelVertical\n");
+  // printf("Starting gpuSobelVertical\n");
   float kernel[9] = {3, 10, 3, 0, 0, 0, -3, -10, -3};
   filter(matrix, result, kernel, 1);
 }

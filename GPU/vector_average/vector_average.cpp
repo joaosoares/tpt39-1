@@ -190,10 +190,12 @@ int main() {
   if (fabsf(final_output - ref_output) > 1.0e-5f) {
     printf("Failed verification \nOutput: %f\nReference: %f\n", final_output,
            ref_output);
-  } else {
-    printf("PASSED VERIFICATION!! \nOutput: %f\nReference: %f\n", final_output,
-           ref_output);
   }
+  // else {
+  //   printf("PASSED VERIFICATION!! \nOutput: %f\nReference: %f\n",
+  //   final_output,
+  //          ref_output);
+  // }
   // Release local events.
   clReleaseEvent(write_event[0]);
   clReleaseKernel(kernel);
